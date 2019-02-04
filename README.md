@@ -1,0 +1,2 @@
+# ngx-typeahead
+Typeahead component
