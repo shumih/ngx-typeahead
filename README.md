@@ -1,19 +1,34 @@
-# NgxTypeaheadDemo
+## Installation instructions
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 7.0.2.
+Install `ngx-typeahead-search` from `npm`:
 
-## Development server
+```bash
+npm install ngx-typeahead-search --save
+```
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
+Add needed package to NgModule imports:
 
-## Code scaffolding
+```
+import { NgxTypeaheadModule } from 'ngx-typeahead-search';
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+@NgModule({
+  ...
+  imports: [NgxTypeaheadModule]
+  ...
+})
+```
 
-## Build
+Add component to your page:
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `--prod` flag for a production build.
+```
+<ngx-typeahead ...></ngx-typeahead
+```
 
-## Further help
+## Usage & Demo
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+Demo available here:
+[https://stackblitz.com/github.com/shumih/ngx-typeahead](https://stackblitz.com/github.com/shumih/ngx-typeahead)
+
+### License
+
+MIT

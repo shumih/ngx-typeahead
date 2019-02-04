@@ -1,13 +1,26 @@
 {
-  "name": "ngx-typeahead",
+  "name": "ngx-typeahead-search",
   "version": "0.0.1",
   "peerDependencies": {
     "@angular/common": "^7.0.0",
     "@angular/core": "^7.0.0"
   },
-  "keywords" :["Angular", "Library", "Typeahead"],
+  "author": {
+    "name": "shumih",
+    "email": "shumih.anton@gmail.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "Angular",
+    "Library",
+    "Typeahead"
+  ],
   "repository": {
-    "type" : "git",
-    "url" : "https://github.com/shumih/ngx-typeahead"
-  }
+    "type": "git",
+    "url": "https://github.com/shumih/ngx-typeahead.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ashleygwilliams/ngx-typeahead/issues"
+  },
+  "homepage": "https://github.com/shumih/ngx-typeahead"
 }
