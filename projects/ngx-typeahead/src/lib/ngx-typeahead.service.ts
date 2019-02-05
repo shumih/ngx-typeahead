@@ -2,7 +2,7 @@ import { Observable, Subject } from 'rxjs';
 import { map, filter } from 'rxjs/operators';
 import { Injectable, ElementRef, NgZone } from '@angular/core';
 import { MutatonRecordFilter } from './ngx-typeahead.interface';
-import { containsTextNode, isTextNode, isCommentNode } from './helpers';
+import { containsPlainTextNode, isPlainTextNode, isCommentNode } from './helpers';
 
 @Injectable()
 export class NgxTypeaheadService {
@@ -35,10 +35,10 @@ export class NgxTypeaheadService {
 
   // filters
   private isAddingTextNode(change: MutationRecord): boolean {
-    return change.type === 'childList' && containsTextNode(change.addedNodes);
+    return change.type === 'childList' && containsPlainTextNode(change.addedNodes);
   }
 
   private isChangingTextNodeContent(change: MutationRecord): boolean {
-    return change.type === 'characterData' && (isTextNode(change.target) || isCommentNode(change.target));
+    return change.type === 'characterData' && (isPlainTextNode(change.target) || isCommentNode(change.target));
   }
 }

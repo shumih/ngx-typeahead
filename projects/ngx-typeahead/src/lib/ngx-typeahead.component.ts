@@ -18,7 +18,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { NgxTypeaheadService } from './ngx-typeahead.service';
-import { getTextNode } from './helpers';
+import { getPlainTextNode } from './helpers';
 
 export const TYPEAHEAD_CONTROL_VALUE_ACCESSOR = {
   provide: NG_VALUE_ACCESSOR,
@@ -113,6 +113,11 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
 
   @HostBinding('attr.contenteditable') get contenteditable() {
     return 'true';
+  }
+
+  @HostListener('keydown', ['$event'])
+  public handleKeyUp(e: KeyboardEvent): void {
+    e.preventDefault();
   }
 
   @HostListener('keydown', ['$event'])
@@ -211,7 +216,7 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
   }
 
   private get textNode(): Node | null {
-    return this.elRef && getTextNode(this.elRef.nativeElement.childNodes);
+    return this.elRef && getPlainTextNode(this.elRef.nativeElement.childNodes);
   }
 
   private get plainText(): string {
@@ -399,7 +404,7 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
   private normalizeNodesSequense(): void {
     const el = this.elRef.nativeElement;
     const nodes = el.childNodes;
-    const textNode = getTextNode(nodes);
+    const textNode = getPlainTextNode(nodes);
     const typeaheadEl = this.typeaheadElRef.nativeElement;
 
     const arrayOfNodes: Node[] = Array.from(nodes);
