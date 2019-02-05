@@ -1,5 +1,5 @@
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
-import { map, distinctUntilChanged } from 'rxjs/operators';
+import { map, tap, distinctUntilChanged } from 'rxjs/operators';
 import {
   Component,
   Input,
@@ -14,6 +14,7 @@ import {
   OnDestroy,
   ViewEncapsulation,
   Output,
+  OnInit,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { NgxTypeaheadService } from './ngx-typeahead.service';
@@ -100,7 +101,10 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
   /**
    * The stream ahead part.
    */
-  public typeahead$: Observable<string | null> = this.input$.pipe(map(input => this.getTypeahead(input)));
+  public typeahead$: Observable<string | null> = this.input$.pipe(
+    tap(() => this.normalizeNodesSequense()),
+    map(input => this.getTypeahead(input))
+  );
 
   private maxWordsInSuggestionCount: number;
   private destroy$: Subject<void> = new Subject();
@@ -111,29 +115,17 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
     return 'true';
   }
 
-  @HostListener('input')
-  public handleInput() {
-    this.onChangeCallback(this.plainText);
-  }
-
   @HostListener('keydown', ['$event'])
   public handleKeyDown(e: KeyboardEvent): void {
     const selection = window.getSelection();
-
-    // prevent content view remove
-    if (!this.plainText && e.key === 'Backspace') {
-      e.preventDefault();
-    }
+    const withControl = (e.metaKey && navigator.platform === 'MacIntel') || e.ctrlKey;
 
     // prevent caret on ahead text move/remove
     if (this.isRightmostSelection(selection) && (e.key === 'ArrowRight' || e.key === 'Delete')) {
       e.preventDefault();
     }
 
-    if (
-      ((e.metaKey && navigator.platform === 'MacIntel') || e.ctrlKey) &&
-      (e.key === 'ArrowRight' || e.key === 'Delete')
-    ) {
+    if (withControl && (e.key === 'ArrowRight' || e.key === 'Delete')) {
       e.preventDefault();
       this.moveCaretRightmost();
     }
@@ -151,6 +143,23 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
       if (ok) {
         e.stopPropagation();
       }
+    }
+
+    if ((this.plainText.length <= 1 || withControl) && e.key === 'Backspace') {
+      e.preventDefault();
+
+      if (this.plainText.length === 1 || withControl) {
+        this.plainText = '';
+      }
+    }
+
+    /**
+     * handle IE 11 contenteditable behavior
+     */
+    if (e.key.length === 1 && !withControl) {
+      e.preventDefault();
+      this.plainText += e.key;
+      this.moveCaretRightmost();
     }
   }
 
@@ -385,5 +394,20 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
 
       return count > result ? count : result;
     }, 0);
+  }
+
+  private normalizeNodesSequense(): void {
+    const el = this.elRef.nativeElement;
+    const nodes = el.childNodes;
+    const textNode = getTextNode(nodes);
+    const typeaheadEl = this.typeaheadElRef.nativeElement;
+
+    const arrayOfNodes: Node[] = Array.from(nodes);
+    const indexOfTextNode = arrayOfNodes.indexOf(textNode);
+    const indexOfTypeahead = arrayOfNodes.indexOf(typeaheadEl);
+
+    if (indexOfTypeahead > -1 && indexOfTextNode > indexOfTypeahead) {
+      el.insertBefore(textNode, typeaheadEl);
+    }
   }
 }
