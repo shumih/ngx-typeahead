@@ -14,7 +14,6 @@ import {
   OnDestroy,
   ViewEncapsulation,
   Output,
-  OnInit,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { NgxTypeaheadService } from './ngx-typeahead.service';
@@ -115,9 +114,16 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
     return 'true';
   }
 
-  @HostListener('keydown', ['$event'])
+  @HostListener('keyup', ['$event'])
   public handleKeyUp(e: KeyboardEvent): void {
     e.preventDefault();
+  }
+
+  @HostListener('input', ['$event'])
+  public handleInput(e: KeyboardEvent): void {
+    e.preventDefault();
+
+    this.plainText = this.textNode.textContent;
   }
 
   @HostListener('keydown', ['$event'])
@@ -159,12 +165,11 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
     }
 
     /**
-     * handle IE 11 contenteditable behavior
+     * Character
      */
-    if (e.key.length === 1 && !withControl) {
+    if (e.code.length === 1 && !withControl) {
       e.preventDefault();
       this.plainText += e.key;
-      this.moveCaretRightmost();
     }
   }
 
@@ -187,6 +192,7 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
   public handlePaste(e: any): void {
     if (e.clipboardData.types.includes('text/html')) {
       e.preventDefault();
+      this.plainText = e.clipboardData.getData('text/plain');
     }
   }
 
@@ -238,6 +244,7 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
     }
 
     this.onChangeCallback(v);
+    this.moveCaretRightmost();
   }
 
   constructor(private elRef: ElementRef<HTMLDivElement>, private service: NgxTypeaheadService) {}
@@ -307,8 +314,8 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
     let chunk: string;
     let suggestion: S;
 
-    for (let i = 0; i < this.maxWordsInSuggestionCount; i++) {
-      chunk = chunks.join(' ');
+    for (let i = this.maxWordsInSuggestionCount; i > 0; i--) {
+      chunk = chunks.slice(i - 1).join(' ');
       suggestion = this.getSuggestion(chunk);
 
       if (suggestion) {
@@ -378,7 +385,6 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
     }
 
     this.plainText = this.plainText + typeahead;
-    this.moveCaretRightmost();
 
     return true;
   }
