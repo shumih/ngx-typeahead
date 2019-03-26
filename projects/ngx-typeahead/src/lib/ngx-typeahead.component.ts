@@ -129,7 +129,7 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
   @HostListener('keydown', ['$event'])
   public handleKeyDown(e: KeyboardEvent): void {
     const selection = window.getSelection();
-    const withControl = (e.metaKey && navigator.platform === 'MacIntel') || e.ctrlKey;
+    const withControl = (e.metaKey && navigator.platform === 'MacIntel') || e.ctrlKey || e.altKey;
 
     // prevent caret on ahead text move/remove
     if (this.isRightmostSelection(selection) && (e.key === 'ArrowRight' || e.key === 'Delete')) {
