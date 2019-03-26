@@ -314,8 +314,8 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
     let chunk: string;
     let suggestion: S;
 
-    for (let i = this.maxWordsInSuggestionCount; i > 0; i--) {
-      chunk = chunks.slice(i - 1).join(' ');
+    for (let i = 1; i <= this.maxWordsInSuggestionCount; i++) {
+      chunk = chunks.slice(chunks.length - i).join(' ');
       suggestion = this.getSuggestion(chunk);
 
       if (suggestion) {
@@ -346,14 +346,9 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
    * Return appropriate suggestion or null
    */
   private getSuggestion(text: string): S | null {
-    return (
-      text &&
-      this.suggestions.find(item =>
-        this.getSearchValue(item)
-          .toLowerCase()
-          .startsWith(text.toLowerCase())
-      )
-    );
+    const query = text.replace(/\s/g, () => ' ');
+
+    return text && this.suggestions.find(item => new RegExp(`^${query}.*`, 'i').test(this.getSearchValue(item)));
   }
 
   private getSearchValue(item: S): string {
