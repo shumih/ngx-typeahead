@@ -114,6 +114,11 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
     return 'true';
   }
 
+  @HostListener('input')
+  public handleInput(): void {
+    this.onChangeCallback(this.plainText);
+  }
+
   @HostListener('keyup', ['$event'])
   public handleKeyUp(e: KeyboardEvent): void {
     e.preventDefault();
