@@ -119,13 +119,6 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
     e.preventDefault();
   }
 
-  @HostListener('input', ['$event'])
-  public handleInput(e: KeyboardEvent): void {
-    e.preventDefault();
-
-    this.plainText = this.textNode.textContent;
-  }
-
   @HostListener('keydown', ['$event'])
   public handleKeyDown(e: KeyboardEvent): void {
     const selection = window.getSelection();
@@ -163,14 +156,6 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
         this.plainText = '';
       }
     }
-
-    /**
-     * Character
-     */
-    if (e.code.length === 1 && !withControl) {
-      e.preventDefault();
-      this.plainText += e.key;
-    }
   }
 
   @HostListener('click')
@@ -192,7 +177,14 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
   public handlePaste(e: any): void {
     if (e.clipboardData.types.includes('text/html')) {
       e.preventDefault();
-      this.plainText = e.clipboardData.getData('text/plain');
+      const focusOffset = window.getSelection().focusOffset;
+      const plainText = this.plainText;
+      const clipboardText = e.clipboardData.getData('text/plain');
+
+      if (typeof clipboardText === 'string') {
+        this.plainText = plainText.substring(0, focusOffset) + clipboardText + plainText.substring(focusOffset);
+        this.moveCaretTo(focusOffset + clipboardText.length);
+      }
     }
   }
 
@@ -244,7 +236,6 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
     }
 
     this.onChangeCallback(v);
-    this.moveCaretRightmost();
   }
 
   constructor(private elRef: ElementRef<HTMLDivElement>, private service: NgxTypeaheadService) {}
@@ -281,6 +272,7 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
     }
 
     this.plainText = v;
+    this.moveCaretRightmost();
   }
 
   public registerOnChange(fn: any) {
@@ -348,7 +340,17 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
   private getSuggestion(text: string): S | null {
     const query = text.replace(/\s/g, () => ' ');
 
-    return text && this.suggestions.find(item => new RegExp(`^${query}.*`, 'i').test(this.getSearchValue(item)));
+    if (!query) {
+      return null;
+    }
+
+    try {
+      const searchRegExp = new RegExp(`^${query}.*`, 'i');
+
+      return this.suggestions.find(item => searchRegExp.test(this.getSearchValue(item))) || null;
+    } catch (e) {
+      return null;
+    }
   }
 
   private getSearchValue(item: S): string {
@@ -380,18 +382,24 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
     }
 
     this.plainText = this.plainText + typeahead;
+    this.moveCaretRightmost();
 
     return true;
+  }
+
+  private moveCaretTo(position: number): void {
+    const selection = window.getSelection();
+
+    selection.collapse(this.textNode, position);
   }
 
   /**
    * Move caret to text content
    */
   private moveCaretRightmost(): void {
-    const selection = window.getSelection();
     const textLength = this.plainText.length;
 
-    selection.collapse(this.textNode, textLength);
+    this.moveCaretTo(textLength);
   }
 
   private getGreatesWordsAmount(items: S[]): number {
