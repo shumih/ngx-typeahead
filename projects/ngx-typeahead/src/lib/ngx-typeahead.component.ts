@@ -1,5 +1,5 @@
-import { Observable, Subject, BehaviorSubject } from 'rxjs';
-import { map, tap, distinctUntilChanged } from 'rxjs/operators';
+import { Subject, BehaviorSubject } from 'rxjs';
+import { startWith, takeUntil } from 'rxjs/operators';
 import {
   Component,
   Input,
@@ -8,16 +8,14 @@ import {
   ViewChild,
   SimpleChanges,
   ElementRef,
-  HostListener,
-  HostBinding,
   forwardRef,
   OnDestroy,
   ViewEncapsulation,
   Output,
+  OnInit,
+  ChangeDetectorRef,
 } from '@angular/core';
-import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { NgxTypeaheadService } from './ngx-typeahead.service';
-import { getPlainTextNode } from './helpers';
+import { ControlValueAccessor, FormControl, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 export const TYPEAHEAD_CONTROL_VALUE_ACCESSOR = {
   provide: NG_VALUE_ACCESSOR,
@@ -28,26 +26,65 @@ export const TYPEAHEAD_CONTROL_VALUE_ACCESSOR = {
 @Component({
   selector: 'ngx-typeahead',
   template: `
-    <span #typeahead class="ngx-typeahead-content" *ngIf="(focused$ | async)">{{ typeahead$ | async }}</span>
+    <div class="ngx-typeahead">
+      <input
+        #plainText
+        type="text"
+        class="ngx-plain-content text"
+        [placeholder]="placeholder"
+        [formControl]="plainTextControl"
+        (focus)="typeahead.hidden = false"
+        (blur)="typeahead.hidden = false"
+        (keydown)="handleKeyDown($event)"
+      />
+      <p #typeahead class="ngx-typeahead-content text">
+        <ng-container *ngIf="typeaheadContent">
+          <span style="opacity: 0">{{ typeaheadContent[0] }}</span
+          ><span>{{ typeaheadContent[1] }}</span>
+        </ng-container>
+      </p>
+    </div>
   `,
   styles: [
     `
-      :host {
+      .ngx-typeahead {
+        position: relative;
+        width: 100%;
+        height: 100%;
         cursor: text;
       }
-      :host(:empty:not(:focus)::before) {
-        content: attr(placeholder);
+      .text {
+        line-height: 36px;
+        font-size: 2.2em;
+      }
+      .ngx-plain-content {
+        width: 400px;
+        height: 36px;
+        white-space: nowrap;
+        overflow: hidden;
+        outline: none;
+        -webkit-appearance: none;
+        color: white;
+        word-spacing: 0.02em;
+        letter-spacing: 0.02em;
+        padding: 8px 8px;
+        border: 1px solid #4b4848;
+        background-color: #212121;
       }
       .ngx-typeahead-content {
+        position: absolute;
         color: gray;
+        left: 8px;
+        top: 10px;
+        margin: 0;
       }
     `,
   ],
-  providers: [TYPEAHEAD_CONTROL_VALUE_ACCESSOR, NgxTypeaheadService],
+  providers: [TYPEAHEAD_CONTROL_VALUE_ACCESSOR],
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
 })
-export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlValueAccessor {
+export class NgxTypeaheadComponent<S> implements OnInit, OnDestroy, OnChanges, ControlValueAccessor {
   /**
    * Allow line breaks
    */
@@ -61,7 +98,7 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
   /**
    * The input placeholder.
    */
-  @HostBinding('attr.placeholder') @Input() public placeholder: string;
+  @Input() public placeholder: string;
 
   /**
    * The list of keys which will apply suggestion
@@ -89,161 +126,24 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
   @Output()
   public focused$: BehaviorSubject<boolean> = new BehaviorSubject(false);
 
-  /**
-   * The stream of content elements.
-   */
-  public input$: Observable<string> = this.service.observeTextNode().pipe(
-    map(() => this.plainText),
-    distinctUntilChanged()
-  );
+  @ViewChild('plainText') plainTextElRef: ElementRef<HTMLInputElement>;
 
-  /**
-   * The stream ahead part.
-   */
-  public typeahead$: Observable<string | null> = this.input$.pipe(
-    tap(() => this.normalizeNodesSequense()),
-    map(input => this.getTypeahead(input))
-  );
+  public plainTextControl: FormControl = new FormControl('');
+  public typeaheadContent: [string, string] | null = null;
 
   private maxWordsInSuggestionCount: number;
   private destroy$: Subject<void> = new Subject();
 
-  @ViewChild('typeahead') typeaheadElRef: ElementRef<HTMLSpanElement>;
+  constructor(private cdRef: ChangeDetectorRef) {}
 
-  @HostBinding('attr.contenteditable') get contenteditable() {
-    return 'true';
+  ngOnInit(): void {
+    this.plainTextControl.valueChanges
+      .pipe(
+        startWith(this.plainTextControl.value),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(text => this.setWithChangeDetection({ typeaheadContent: this.getTypeahead(text) }));
   }
-
-  @HostListener('input')
-  public handleInput(): void {
-    this.onChangeCallback(this.plainText);
-  }
-
-  @HostListener('keyup', ['$event'])
-  public handleKeyUp(e: KeyboardEvent): void {
-    e.preventDefault();
-  }
-
-  @HostListener('keydown', ['$event'])
-  public handleKeyDown(e: KeyboardEvent): void {
-    const selection = window.getSelection();
-    const withControl = (e.metaKey && navigator.platform === 'MacIntel') || e.ctrlKey || e.altKey;
-
-    // prevent caret on ahead text move/remove
-    if (this.isRightmostSelection(selection) && (e.key === 'ArrowRight' || e.key === 'Delete')) {
-      e.preventDefault();
-    }
-
-    if (withControl && (e.key === 'ArrowRight' || e.key === 'Delete')) {
-      e.preventDefault();
-      this.moveCaretRightmost();
-    }
-
-    // prevent line breaks
-    if (e.key === 'Enter' && !this.multiline) {
-      e.preventDefault();
-    }
-
-    if (this.applyingKeys.includes(e.key) && this.typeaheadContent) {
-      e.preventDefault();
-
-      const ok = this.applySuggestion();
-
-      if (ok) {
-        e.stopPropagation();
-      }
-    }
-
-    if ((this.plainText.length <= 1 || withControl) && e.key === 'Backspace') {
-      e.preventDefault();
-
-      if (this.plainText.length === 1 || withControl) {
-        this.plainText = '';
-      }
-    }
-  }
-
-  @HostListener('click')
-  public handleClick(): void {
-    const selection = window.getSelection();
-
-    if (this.isTypeaheadNode(selection.focusNode)) {
-      this.moveCaretRightmost();
-    }
-
-    this.onTouchedCallback();
-  }
-
-  /**
-   * IE 11 doesn't have ClipboardEvent constructor
-   * @param e ClipboardEvent
-   */
-  @HostListener('paste', ['$event'])
-  public handlePaste(e: any): void {
-    if (e.clipboardData.types.includes('text/html')) {
-      e.preventDefault();
-      const focusOffset = window.getSelection().focusOffset;
-      const plainText = this.plainText;
-      const clipboardText = e.clipboardData.getData('text/plain');
-
-      if (typeof clipboardText === 'string') {
-        this.plainText = plainText.substring(0, focusOffset) + clipboardText + plainText.substring(focusOffset);
-        this.moveCaretTo(focusOffset + clipboardText.length);
-      }
-    }
-  }
-
-  /**
-   * Safari doesn't have DragEvent constructor
-   * @param e DragEvent
-   */
-  @HostListener('dragover', ['$event'])
-  @HostListener('dragenter', ['$event'])
-  public handleDrag(e: any): void {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'none';
-  }
-
-  @HostListener('focus')
-  public handleFocus() {
-    this.focused$.next(true);
-  }
-
-  @HostListener('blur')
-  public handleBlur() {
-    this.focused$.next(false);
-  }
-
-  private get typeaheadContent(): string | null {
-    return this.typeaheadElRef && this.typeaheadElRef.nativeElement.textContent;
-  }
-
-  private get textNode(): Node | null {
-    return this.elRef && getPlainTextNode(this.elRef.nativeElement.childNodes);
-  }
-
-  private get plainText(): string {
-    const node = this.textNode;
-
-    return (node && node.textContent) || '';
-  }
-
-  private set plainText(v: string) {
-    const el = this.elRef.nativeElement;
-    let textNode = this.textNode;
-
-    if (textNode) {
-      textNode.textContent = v;
-    } else {
-      textNode = document.createTextNode(v);
-
-      el.lastChild ? el.insertBefore(textNode, el.lastChild) : el.appendChild(textNode);
-    }
-
-    this.onChangeCallback(v);
-  }
-
-  constructor(private elRef: ElementRef<HTMLDivElement>, private service: NgxTypeaheadService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     const suggestions = changes.suggestions && changes.suggestions.currentValue;
@@ -256,7 +156,18 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.service.disconnect();
+  }
+
+  public handleKeyDown(e: KeyboardEvent): void {
+    if (this.applyingKeys.includes(e.key) && this.typeaheadContent) {
+      e.preventDefault();
+
+      const ok = this.applySuggestion();
+
+      if (ok) {
+        e.stopPropagation();
+      }
+    }
   }
 
   // -------------------- Control Value Accessor --------------------
@@ -276,12 +187,14 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
       return;
     }
 
-    this.plainText = v;
-    this.moveCaretRightmost();
+    this.plainTextControl.setValue(v);
   }
 
   public registerOnChange(fn: any) {
-    this.onChangeCallback = fn;
+    this.onChangeCallback = v => {
+      fn(v);
+      console.log(v);
+    };
   }
 
   public registerOnTouched(fn: any) {
@@ -290,9 +203,9 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
 
   public setDisabledState(isDisabled: boolean): void {
     if (isDisabled) {
-      this.elRef.nativeElement.setAttribute('disabled', '');
+      this.plainTextControl.disable();
     } else {
-      this.elRef.nativeElement.removeAttribute('disabled');
+      this.plainTextControl.enable();
     }
   }
 
@@ -301,9 +214,9 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
   /**
    * Return suggestion completion
    */
-  public getTypeahead(input: string = this.plainText): string {
+  public getTypeahead(input?: string | null): [string, string] | null {
     if (!input) {
-      return '';
+      return null;
     }
 
     const chunks = input.split(this.partSeparator);
@@ -321,22 +234,16 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
     }
 
     if (
-      document.activeElement !== this.elRef.nativeElement ||
+      document.activeElement !== this.plainTextElRef.nativeElement ||
       !suggestion ||
       chunk.length === suggestion[this.displayProperty]
     ) {
-      return '';
+      return null;
     }
 
-    return this.getDisplayValue(suggestion).substr(chunk.length);
-  }
+    const displayValue = this.getDisplayValue(suggestion);
 
-  private isTypeaheadNode(node: Node): boolean {
-    return this.typeaheadElRef && node === this.typeaheadElRef.nativeElement.firstChild;
-  }
-
-  private isRightmostSelection(selection: Selection): boolean {
-    return selection.focusNode.textContent.length === selection.focusOffset;
+    return [input.substr(0, input.length), displayValue.substr(chunk.length)];
   }
 
   /**
@@ -380,31 +287,16 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
    * Replace text content part and ahead text on suggestion
    */
   private applySuggestion(): boolean {
-    const typeahead = this.getTypeahead(this.plainText);
+    const plainText = this.plainTextControl.value;
+    const typeahead = this.getTypeahead(plainText);
 
     if (!typeahead) {
       return false;
     }
 
-    this.plainText = this.plainText + typeahead;
-    this.moveCaretRightmost();
+    this.plainTextControl.setValue(typeahead[0] + typeahead[1]);
 
     return true;
-  }
-
-  private moveCaretTo(position: number): void {
-    const selection = window.getSelection();
-
-    selection.collapse(this.textNode, position);
-  }
-
-  /**
-   * Move caret to text content
-   */
-  private moveCaretRightmost(): void {
-    const textLength = this.plainText.length;
-
-    this.moveCaretTo(textLength);
   }
 
   private getGreatesWordsAmount(items: S[]): number {
@@ -415,18 +307,8 @@ export class NgxTypeaheadComponent<S> implements OnDestroy, OnChanges, ControlVa
     }, 0);
   }
 
-  private normalizeNodesSequense(): void {
-    const el = this.elRef.nativeElement;
-    const nodes = el.childNodes;
-    const textNode = getPlainTextNode(nodes);
-    const typeaheadEl = this.typeaheadElRef.nativeElement;
-
-    const arrayOfNodes: Node[] = Array.from(nodes);
-    const indexOfTextNode = arrayOfNodes.indexOf(textNode);
-    const indexOfTypeahead = arrayOfNodes.indexOf(typeaheadEl);
-
-    if (indexOfTypeahead > -1 && indexOfTextNode > indexOfTypeahead) {
-      el.insertBefore(textNode, typeaheadEl);
-    }
+  private setWithChangeDetection(data: Partial<NgxTypeaheadComponent<S>>): void {
+    Object.assign(this, data);
+    this.cdRef.detectChanges();
   }
 }
