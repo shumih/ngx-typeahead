@@ -129,7 +129,10 @@ export class NgxTypeaheadComponent<S> implements OnInit, OnDestroy, OnChanges, C
         startWith(this.plainTextControl.value),
         takeUntil(this.destroy$)
       )
-      .subscribe(text => this.setWithChangeDetection({ typeaheadContent: this.getTypeahead(text) }));
+      .subscribe(text => {
+        this.setWithChangeDetection({ typeaheadContent: this.getTypeahead(text) });
+        this.onChangeCallback(text);
+      });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -178,10 +181,7 @@ export class NgxTypeaheadComponent<S> implements OnInit, OnDestroy, OnChanges, C
   }
 
   public registerOnChange(fn: any) {
-    this.onChangeCallback = v => {
-      fn(v);
-      console.log(v);
-    };
+    this.onChangeCallback = fn;
   }
 
   public registerOnTouched(fn: any) {
