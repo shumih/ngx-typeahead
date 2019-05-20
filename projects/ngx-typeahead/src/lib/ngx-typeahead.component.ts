@@ -37,10 +37,10 @@ export const TYPEAHEAD_CONTROL_VALUE_ACCESSOR = {
         (blur)="typeahead.hidden = false"
         (keydown)="handleKeyDown($event)"
       />
-      <p #typeahead class="ngx-typeahead-content text">
+      <p #typeahead class="ngx-typeahead-content">
         <ng-container *ngIf="typeaheadContent">
-          <span style="opacity: 0">{{ typeaheadContent[0] }}</span
-          ><span>{{ typeaheadContent[1] }}</span>
+          <span style="visibility: hidden" class="text">{{ typeaheadContent[0] }}</span
+          ><span class="text">{{ typeaheadContent[1] }}</span>
         </ng-container>
       </p>
     </div>
@@ -55,18 +55,16 @@ export const TYPEAHEAD_CONTROL_VALUE_ACCESSOR = {
       }
       .text {
         line-height: 36px;
+        height: 36px;
         font-size: 2.2em;
       }
       .ngx-plain-content {
         width: 400px;
-        height: 36px;
         white-space: nowrap;
         overflow: hidden;
         outline: none;
         -webkit-appearance: none;
         color: white;
-        word-spacing: 0.02em;
-        letter-spacing: 0.02em;
         padding: 8px 8px;
         border: 1px solid #4b4848;
         background-color: #212121;
@@ -74,8 +72,8 @@ export const TYPEAHEAD_CONTROL_VALUE_ACCESSOR = {
       .ngx-typeahead-content {
         position: absolute;
         color: gray;
-        left: 8px;
-        top: 10px;
+        left: 9px;
+        top: 9px;
         margin: 0;
       }
     `,
