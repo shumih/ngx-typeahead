@@ -64,10 +64,7 @@ export const TYPEAHEAD_CONTROL_VALUE_ACCESSOR = {
         overflow: hidden;
         outline: none;
         -webkit-appearance: none;
-        color: white;
         padding: 8px 8px;
-        border: 1px solid #4b4848;
-        background-color: #212121;
       }
       .ngx-typeahead-content {
         position: absolute;
