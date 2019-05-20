@@ -3,14 +3,38 @@
   height: 100%;
   justify-content: center;
 
+  ngx-typeahead {
+    height: 72px;
+  }
+
   ngx-typeahead ::ng-deep .ngx-typeahead {
+    position: relative;
     align-self: center;
     margin-right: 15%;
+    width: 400px;
+    white-space: nowrap;
+    overflow: hidden;
+    outline: none;
+    -webkit-appearance: none;
+    color: white;
+
+    .text {
+      line-height: 36px;
+      height: 36px;
+      font-size: 2.2em;
+    }
 
     .ngx-plain-content {
       border: 1px solid #4b4848;
       background-color: #212121;
       color: white;
+    }
+
+    .ngx-typeahead-content {
+      position: absolute;
+      color: gray;
+      left: 9px;
+      top: 9px;
     }
   }
 }

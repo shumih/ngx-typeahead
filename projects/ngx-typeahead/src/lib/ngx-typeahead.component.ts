@@ -24,7 +24,7 @@ export const TYPEAHEAD_CONTROL_VALUE_ACCESSOR = {
 };
 
 @Component({
-  selector: 'ngx-typeahead',
+  selector: ' ngx-typeahead',
   template: `
     <div class="ngx-typeahead">
       <input
@@ -34,7 +34,7 @@ export const TYPEAHEAD_CONTROL_VALUE_ACCESSOR = {
         [placeholder]="placeholder"
         [formControl]="plainTextControl"
         (focus)="typeahead.hidden = false"
-        (blur)="typeahead.hidden = false"
+        (blur)="typeahead.hidden = true"
         (keydown)="handleKeyDown($event)"
       />
       <p #typeahead class="ngx-typeahead-content">
@@ -53,13 +53,7 @@ export const TYPEAHEAD_CONTROL_VALUE_ACCESSOR = {
         height: 100%;
         cursor: text;
       }
-      .text {
-        line-height: 36px;
-        height: 36px;
-        font-size: 2.2em;
-      }
       .ngx-plain-content {
-        width: 400px;
         white-space: nowrap;
         overflow: hidden;
         outline: none;
@@ -69,8 +63,6 @@ export const TYPEAHEAD_CONTROL_VALUE_ACCESSOR = {
       .ngx-typeahead-content {
         position: absolute;
         color: gray;
-        left: 9px;
-        top: 9px;
         margin: 0;
       }
     `,
